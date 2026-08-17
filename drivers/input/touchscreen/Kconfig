@@ -1261,4 +1261,5 @@ source "drivers/input/touchscreen/sec_ts/Kconfig"
 source "drivers/input/touchscreen/melfas/mss100/Kconfig"
 source "drivers/input/touchscreen/novatek/nt36672a/Kconfig"
 source "drivers/input/touchscreen/himax/himax_83102E/Kconfig"
+source "drivers/input/touchscreen/imagis_40xx/Kconfig"
 endif

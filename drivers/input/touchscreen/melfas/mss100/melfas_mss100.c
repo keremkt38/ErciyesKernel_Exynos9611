@@ -22,6 +22,7 @@ struct mms_ts_info *tui_tsp_info;
 #ifdef CONFIG_SAMSUNG_TUI
 struct mms_ts_info *tsp_info;
 #endif
+#include <linux/spu-verify.h>
 
 /**
  * Reboot chip
@@ -815,32 +816,14 @@ static int mms_alert_handler_pocket_mode_state(struct mms_ts_info *info, u8 data
 
 static int mms_alert_handler_proximity_state(struct mms_ts_info *info, u8 data)
 {
-	bool report = false;
-
+	
 	if (!info->dtdata->support_protos) {
 		if (data == 4 || data == 5) {
 			input_info(true, &info->client->dev, "%s: not support protos %d\n", __func__, data);
 			return 0;
 		}
 	}
-	report |= info->lowpower_mode;
-	if (info->touch_count > 0) {
-		int i;
-		for (i = 0; i < MAX_FINGER_NUM; i++) {
-			if (info->finger_state[i]) {
-				if (info->coord[i].y < 700 && info->coord[i].x > 900 && info->coord[i].x < 3000) {
-					report |= true;
-					break;
-				}
-			}
-		}
-	}
-	if (report) {
-		data = data == 5 || !data;
-	} else {
-		data = 1;
-	}
-
+	data = data == 5 || !data;
 	input_info(true, &info->client->dev, "%s: hover %d\n", __func__, data);
 	info->hover_event = data;
 
@@ -1102,7 +1085,6 @@ ERROR:
 /**
  * Update firmware from external storage
  */
-extern int long spu_firmware_signature_verify(const char* fw_name, const u8* fw_data, const long fw_size);
 int mms_fw_update_from_storage(struct mms_ts_info *info, bool force, bool signing, const char *file_path)
 {
 	struct file *fp;

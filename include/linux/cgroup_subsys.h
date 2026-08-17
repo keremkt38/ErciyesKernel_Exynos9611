@@ -21,10 +21,6 @@ SUBSYS(cpu)
 SUBSYS(cpuacct)
 #endif
 
-#if IS_ENABLED(CONFIG_SCHED_TUNE)
-SUBSYS(schedtune)
-#endif
-
 #if IS_ENABLED(CONFIG_BLK_CGROUP)
 SUBSYS(io)
 #endif
@@ -35,10 +31,6 @@ SUBSYS(memory)
 
 #if IS_ENABLED(CONFIG_CGROUP_DEVICE)
 SUBSYS(devices)
-#endif
-
-#if IS_ENABLED(CONFIG_CGROUP_FREEZER)
-SUBSYS(freezer)
 #endif
 
 #if IS_ENABLED(CONFIG_CGROUP_NET_CLASSID)

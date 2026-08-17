@@ -98,6 +98,9 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 	if (pafstat == NULL)
 		return IRQ_NONE;
 
+	if (atomic_read(&pafstat->sfr_state) < PAFSTAT_SFR_READY)
+		return IRQ_HANDLED;
+
 	irq_src = pafstat_hw_g_irq_src(pafstat->regs);
 	irq_mask = pafstat_hw_g_irq_mask(pafstat->regs);
 	status = (~irq_mask) & irq_src;
@@ -144,7 +147,6 @@ static irqreturn_t fimc_is_isr_pafstat(int irq, void *data)
 		atomic_inc(&pafstat->cl);
 		dbg_isr("[%d][F:%d] LINE INTR (0x%x)", pafstat, pafstat->id, atomic_read(&pafstat->cl), status);
 		atomic_add(pafstat->fro_cnt, &pafstat->cl);
-
 		if (atomic_read(&pafstat->sfr_state) == PAFSTAT_SFR_APPLIED)
 			tasklet_schedule(&pafstat->tasklet_fwin_stat);
 	}
@@ -235,6 +237,7 @@ static void pafstat_tasklet_fwin_stat(unsigned long data)
 
 			frameptr = atomic_read(&pafstat->frameptr_fwin_stat) % framemgr->num_frames;
 			frame = &framemgr->frames[frameptr];
+			
 			frame->fcount = sensor->fcount;
 
 			pafstat_hw_g_fwin_stat(curr_regs, (void *)frame->kvaddr_buffer[0],
@@ -265,6 +268,7 @@ static void pafstat_worker_fwin_stat(struct work_struct *work)
 	unsigned long flag;
 
 	pafstat = container_of(work, struct fimc_is_pafstat, work_fwin_stat);
+		
 	module = (struct fimc_is_module_enum *)v4l2_get_subdev_hostdata(pafstat->subdev);
 	if (!module) {
 		err("failed to get module");
@@ -280,7 +284,7 @@ static void pafstat_worker_fwin_stat(struct work_struct *work)
 	sensor = (struct fimc_is_device_sensor *)v4l2_get_subdev_hostdata(subdev_module);
 
 	spin_lock_irqsave(&pafstat->slock_paf_action, flag);
-	list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {
+	list_for_each_entry_safe(pa, temp, &pafstat->list_of_paf_action, list) {		
 		switch (pa->type) {
 		case VC_STAT_TYPE_PAFSTAT_FLOATING:
 #ifdef ENABLE_FPSIMD_FOR_USER
@@ -496,7 +500,6 @@ int pafstat_register_notifier(struct v4l2_subdev *subdev, enum itf_vc_stat_type 
 		spin_lock_irqsave(&pafstat->slock_paf_action, flag);
 		list_add(&pa->list, &pafstat->list_of_paf_action);
 		spin_unlock_irqrestore(&pafstat->slock_paf_action, flag);
-
 		break;
 	default:
 		return -EINVAL;
@@ -611,7 +614,6 @@ int pafstat_register(struct fimc_is_module_enum *module, int pafstat_ch)
 	atomic_set(&pafstat->fe_img, 0);
 	atomic_set(&pafstat->fe_stat, 0);
 	atomic_set(&pafstat->Vvalid, V_BLANK);
-	init_waitqueue_head(&pafstat->wait_queue);
 
 	pafstat->regs_com = pafstat_devices[0].regs;
 	if (!atomic_read(&g_pafstat_rsccount)) {
@@ -962,6 +964,16 @@ static int __init pafstat_probe(struct platform_device *pdev)
 		goto err_ioremap_b;
 	}
 
+	init_waitqueue_head(&pafstat->wait_queue);
+	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_INIT);
+	atomic_set(&pafstat->fs, 0);
+	atomic_set(&pafstat->cl, 0);
+	atomic_set(&pafstat->fe, 0);
+	atomic_set(&pafstat->fe_img, 0);
+	atomic_set(&pafstat->fe_stat, 0);
+	atomic_set(&pafstat->Vvalid, V_BLANK);
+	atomic_set(&pafstat->frameptr_fwin_stat, 0);
+
 	pafstat->irq = platform_get_irq(pdev, 0);
 	if (pafstat->irq < 0) {
 		dev_err(dev, "failed to get IRQ resource: %d\n", pafstat->irq);
@@ -1004,7 +1016,6 @@ static int __init pafstat_probe(struct platform_device *pdev)
 
 	prepare_pafstat_sfr_dump(pafstat);
 	atomic_set(&g_pafstat_rsccount, 0);
-	atomic_set(&pafstat->sfr_state, PAFSTAT_SFR_INIT);
 
 	platform_set_drvdata(pdev, pafstat);
 	probe_info("%s(%s)\n", __func__, dev_name(&pdev->dev));
@@ -1033,6 +1044,7 @@ static const struct of_device_id sensor_paf_pafstat_match[] = {
 MODULE_DEVICE_TABLE(of, sensor_paf_pafstat_match);
 
 static struct platform_driver sensor_paf_pafstat_platform_driver = {
+    .probe  = pafstat_probe,
 	.driver = {
 		.name   = "Sensor-PAF-PAFSTAT",
 		.owner  = THIS_MODULE,
@@ -1042,13 +1054,6 @@ static struct platform_driver sensor_paf_pafstat_platform_driver = {
 
 static int __init sensor_paf_pafstat_init(void)
 {
-	int ret;
-
-	ret = platform_driver_probe(&sensor_paf_pafstat_platform_driver, pafstat_probe);
-	if (ret)
-		err("failed to probe %s driver: %d\n",
-			sensor_paf_pafstat_platform_driver.driver.name, ret);
-
-	return ret;
+    return platform_driver_register(&sensor_paf_pafstat_platform_driver);
 }
-late_initcall_sync(sensor_paf_pafstat_init);
+subsys_initcall(sensor_paf_pafstat_init);
