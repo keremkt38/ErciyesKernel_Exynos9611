@@ -20,9 +20,9 @@
 #include <trace/events/power.h>
 
 #include "sched.h"
-#include "tune.h"
+#include "ems/ems.h"
 
-unsigned long boosted_cpu_util(int cpu);
+unsigned long cpu_util_freq(int cpu);
 
 #define SUGOV_KTHREAD_PRIORITY	50
 
@@ -243,7 +243,7 @@ static int sugov_select_scaling_cpu(void)
 	/* Idle core of the boot cluster is selected to scaling cpu */
 	for_each_cpu(cpu, &mask) {
 		rt = sched_get_rt_rq_util(cpu);
-		util = boosted_cpu_util(cpu);
+		util = cpu_util(cpu);
 		if (util < min) {
 			min = util;
 			candidate = cpu;
@@ -337,12 +337,15 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
 	unsigned long max_cap;
+	struct rq *rq = cpu_rq(cpu);
 
 	max_cap = arch_scale_cpu_capacity(NULL, cpu);
 
-	*util = boosted_cpu_util(cpu);
+	*util = cpu_util_freq(cpu);
 	*util = min(*util, max_cap);
 	*max = max_cap;
+
+	*util = uclamp_rq_util_with(rq, *util, NULL);
 }
 
 static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
@@ -1007,7 +1010,7 @@ static int sugov_need_slack_timer(unsigned int cpu)
 	struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
 	struct sugov_exynos *sg_exynos = &per_cpu(sugov_exynos, cpu);
 
-	if (schedtune_cpu_boost(cpu))
+	if (READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value))
 		return 0;
 
 	if (sg_cpu->util > sg_exynos->min &&

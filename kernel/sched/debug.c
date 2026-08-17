@@ -942,6 +942,8 @@ __initcall(init_sched_debug_procfs);
 
 #define __P(F) \
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)F)
+#define __PS(F, S) \
+        SEQ_printf(m, "%-45s:%21Ld\n", F, (long long)S)
 #define P(F) \
 	SEQ_printf(m, "%-45s:%21Ld\n", #F, (long long)p->F)
 #define __PN(F) \
@@ -1072,6 +1074,12 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 	P(se.avg.util_est.ewma);
 	P(se.avg.util_est.enqueued);
 #endif
+#ifdef CONFIG_UCLAMP_TASK
+	__PS("uclamp.min", p->uclamp[UCLAMP_MIN].value);
+	__PS("uclamp.max", p->uclamp[UCLAMP_MAX].value);
+	__PS("effective uclamp.min", uclamp_eff_value(p, UCLAMP_MIN));
+	__PS("effective uclamp.max", uclamp_eff_value(p, UCLAMP_MAX));
+#endif
 	P(policy);
 	P(prio);
 	if (p->policy == SCHED_DEADLINE) {
@@ -1083,6 +1091,7 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 #undef __PN
 #undef P_SCHEDSTAT
 #undef P
+#undef __PS
 #undef __P
 
 	{
