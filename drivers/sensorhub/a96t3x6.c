@@ -154,9 +154,9 @@ struct a96t3x6_data {
 	bool first_working;
 };
 
+static void a96t3x6_check_first_working(struct a96t3x6_data *data);
 extern bool sec_flip_cover;
 
-static void a96t3x6_check_first_working(struct a96t3x6_data *data);
 #ifdef CONFIG_SENSORS_A96T3X6_2CH
 static void a96t3x6_2ch_check_first_working(struct a96t3x6_data *data);
 #endif

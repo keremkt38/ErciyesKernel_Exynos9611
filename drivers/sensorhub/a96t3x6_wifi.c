@@ -136,9 +136,10 @@ struct a96t3x6_data {
 #endif
 };
 
+static void a96t3x6_check_first_working(struct a96t3x6_data *data);
+
 extern bool sec_flip_cover;
 
-static void a96t3x6_check_first_working(struct a96t3x6_data *data);
 static void a96t3x6_reset(struct a96t3x6_data *data);
 static void a96t3x6_diff_getdata(struct a96t3x6_data *data, bool log);
 static void grip_always_active(struct a96t3x6_data *data, int on);
