@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        device: [gta4xlwifi]
+        device: [gta4xlwifi, gta4xl]
     steps:
     - name: Repo'yu klonla
       uses: actions/checkout@v4
